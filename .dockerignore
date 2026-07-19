@@ -1,0 +1,15 @@
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore Docker configurations
+Dockerfile
+.dockerignore
+
+# Ignore IDE / Editor configurations
+.vscode/
+.idea/
+.agents/
+.gemini/
+thumbs.db
+.DS_Store
