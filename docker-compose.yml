@@ -1,0 +1,23 @@
+# Local database for Living Foods:  docker compose up -d --wait
+# Uses host port 8081 so it can run next to the Living Art database on 8080.
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: livingfoods
+      MYSQL_USER: livingfoods
+      MYSQL_PASSWORD: livingfoods
+      MYSQL_ROOT_PASSWORD: livingfoods-root
+    ports:
+      - "8081:3306"
+    volumes:
+      - livingfoods-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ulivingfoods", "-plivingfoods"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  livingfoods-db:

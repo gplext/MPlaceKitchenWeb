@@ -1,21 +1,14 @@
-# Use the official lightweight Nginx image based on Alpine Linux
-FROM nginx:alpine
-
-# Set working directory to Nginx html root
-WORKDIR /usr/share/nginx/html
-
-# Remove default static files
-RUN rm -rf ./*
-
-# Copy all workspace files (HTML and assets) into the Nginx container
+FROM node:22-bookworm-slim
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN CI=1 pnpm install --frozen-lockfile
 COPY . .
-
-# Create a symlink so marketplace-kitchen.html is served as the default page (index.html)
-# This keeps the original file names intact while allowing visitors to access the root URL
-RUN ln -sf marketplace-kitchen.html index.html
-
-# Expose port 80 for web traffic
-EXPOSE 80
-
-# Start Nginx in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+RUN pnpm build
+ENV NODE_ENV=production
+ENV PORT=3000
+EXPOSE 3000
+# Lets Docker and Coolify see when the site is really up. Uses node because this image has no curl or wget.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "dist/index.js"]
