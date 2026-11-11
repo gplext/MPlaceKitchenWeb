@@ -306,6 +306,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--green-600); outl
 .admin-tabs button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: 0; border-radius: 999px; background: transparent; color: var(--cream); font-weight: 600; cursor: pointer; }
 .admin-tabs button.active { background: var(--orange); color: #fff; }
 .admin-section { display: grid; gap: 16px; }
+.admin-section + .admin-section { margin-top: 22px; }
+.tab-badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--lime); color: var(--green-950); font-size: 0.75rem; font-weight: 800; display: inline-grid; place-items: center; }
+.alert-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 16px; border-left: 6px solid var(--line); }
+.alert-bar.on { border-left-color: var(--lime); }
+.alert-bar p { flex: 1 1 260px; margin: 0; font-size: 0.92rem; }
+.alert-channels, .alert-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.alert-channels li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.alert-results li { margin: 0; }
+.pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.pill-on { background: #e6f4e0; color: #2a5b16; }
+.pill-off { background: #eee; color: #666; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .toolbar label { flex-direction: row; align-items: center; gap: 8px; }
 .toolbar select { width: auto; }

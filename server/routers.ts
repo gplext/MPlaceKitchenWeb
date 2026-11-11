@@ -6,6 +6,7 @@ import { hashPassword, signSession, toPublicUser, verifyPassword } from "./_core
 import type { TrpcContext } from "./_core/context";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { alertStatus, SAMPLE_ORDER, sendOrderAlerts } from "./alerts";
 import * as db from "./db";
 import { saveImage } from "./media";
 
@@ -109,7 +110,12 @@ export const appRouter = router({
         area: text(120),
         notes: optionalText(500),
       }))
-      .mutation(({ ctx, input }) => db.createOrder({ ...input, userId: ctx.user?.id ?? null }).catch(asBadRequest)),
+      .mutation(async ({ ctx, input }) => {
+        const order = await db.createOrder({ ...input, userId: ctx.user?.id ?? null }).catch(asBadRequest);
+        // Not awaited: the customer gets their confirmation straight away, alerts follow in the background.
+        void sendOrderAlerts(order);
+        return order;
+      }),
 
     /** Order lookup by reference. Anyone holding the number can see it, so name, phone and address are left out. */
     byNumber: publicProcedure.input(z.object({ orderNumber: z.string().min(1).max(32) })).query(async ({ input }) => {
@@ -179,6 +185,9 @@ export const appRouter = router({
     uploadImage: adminProcedure
       .input(z.object({ dataBase64: z.string().min(1).max(8_000_000) }))
       .mutation(async ({ input }) => ({ path: await saveImage(input.dataBase64).catch(asBadRequest) })),
+
+    alerts: adminProcedure.query(() => alertStatus()),
+    sendTestAlert: adminProcedure.mutation(() => sendOrderAlerts(SAMPLE_ORDER)),
 
     settings: adminProcedure.query(() => db.getSettings()),
     saveSettings: adminProcedure

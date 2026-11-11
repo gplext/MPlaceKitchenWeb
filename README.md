@@ -18,6 +18,7 @@ Stack: React 19 + Vite, Express + tRPC, MySQL (Drizzle ORM). Same setup as the L
   - Categories: add, rename, reorder, hide, delete (only when empty).
   - Packing options: name, charge, photo, which categories it is recommended for, default.
   - Shop details: phone, WhatsApp number that receives orders, address, opening hours, delivery charge and free-delivery threshold.
+- **Order alerts** (see below): a chime, desktop notification and tab count in the admin portal, plus an email and a WhatsApp message to the shop for every new order.
 
 ## Placeholders to replace before going live
 
@@ -30,6 +31,61 @@ Stack: React 19 + Vite, Express + tRPC, MySQL (Drizzle ORM). Same setup as the L
 | Phone and WhatsApp number (0345 9024745, taken from livingfoodspk.com) | Admin portal, Shop details |
 | Opening hours, delivery charge | Admin portal, Shop details |
 | Logo | Now the Kitchen & Marketplace logo: `client/public/logo.png` (mark, header), `logo-full.png` (footer) and `favicon.png`. Replace those files to change it. |
+
+## Order alerts
+
+Three ways the shop hears about a new order:
+
+1. **Admin portal.** Click **Turn on alerts** once on `/admin`. While the page is open (any tab, even in the background) a new order plays a chime, shows a desktop notification and puts the count in the browser tab title. The order list checks every 15 seconds. After reopening the page, click anywhere once so the browser allows sound.
+2. **Email.** Sent the moment an order is placed, whether or not anyone is on the admin portal.
+3. **WhatsApp.** A message to one or more shop numbers, sent the same way.
+
+Email and WhatsApp are switched on with environment variables (in Coolify: the app, **Environment Variables**, then redeploy). Admin portal, **Shop details**, **Order alerts** shows which are on and has a **Send test alert** button. A failed alert is written to the app log and never stops the customer's order.
+
+### Email
+
+| Variable | Example |
+| --- | --- |
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `465` (or `587`) |
+| `SMTP_USER` | the sending Gmail address |
+| `SMTP_PASS` | a Gmail **App Password** (Google Account, Security, 2-Step Verification on, App passwords) |
+| `ALERT_EMAIL_TO` | who receives alerts, comma separated |
+| `ALERT_EMAIL_FROM` | optional, e.g. `Living Foods <you@gmail.com>` |
+
+Any SMTP service works the same way (Zoho, Brevo, Resend, your host's mailbox).
+
+### WhatsApp (Meta WhatsApp Cloud API)
+
+WhatsApp only lets a business send a message first through an approved template, so this needs a one-time setup:
+
+1. At [developers.facebook.com](https://developers.facebook.com) create an app of type **Business** and add **WhatsApp**. Link or create a Meta Business account.
+2. Add a phone number to send from. It must not already be in use on the WhatsApp or WhatsApp Business app (a new SIM is simplest). Meta also gives a free test number for trying it out.
+3. In **WhatsApp Manager, Message templates**, create a template:
+   - Name: `new_order_alert`, category **Utility**, language **English**.
+   - Body (six variables, in this order):
+     ```
+     New order {{1}} at Living Foods.
+     Customer: {{2}}, {{3}}
+     Address: {{4}}
+     Items: {{5}}
+     Total: {{6}}
+     Please open the admin portal to confirm.
+     ```
+   - Fill in the sample values Meta asks for (any realistic order), submit, and wait for approval (usually minutes to a day).
+4. Create a permanent token: **Business settings, System users**, add a system user, give it the WhatsApp app and account, generate a token with `whatsapp_business_messaging` permission.
+5. Set the variables:
+
+| Variable | Value |
+| --- | --- |
+| `WHATSAPP_TOKEN` | the system user token |
+| `WHATSAPP_PHONE_NUMBER_ID` | the **Phone number ID** (not the phone number) from the WhatsApp **API Setup** page |
+| `ALERT_WHATSAPP_TO` | shop numbers that receive alerts, comma separated, e.g. `0345 9024745` |
+| `WHATSAPP_TEMPLATE` | optional, default `new_order_alert` |
+| `WHATSAPP_TEMPLATE_LANG` | optional, default `en` (must match the template language code) |
+| `WHATSAPP_API_VERSION` | optional, default `v24.0` |
+
+While the Meta app is in development mode, each receiving number must be added under **API Setup, To** first. Meta charges per template message; see Meta's WhatsApp pricing page for the current rate for Pakistan.
 
 ## Run it on your computer
 
@@ -74,5 +130,4 @@ Same as Living Art: a MySQL database resource, then the app from this repository
 ## Not built yet
 
 - Online card payment (orders are cash on delivery).
-- Automatic SMS or email notifications; the shop sees new orders in the admin portal, which refreshes every 30 seconds.
 - Password reset and sign-in rate limiting.

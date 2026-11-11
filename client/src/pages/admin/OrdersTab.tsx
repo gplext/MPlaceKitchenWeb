@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 
 export function OrdersTab() {
   const utils = trpc.useUtils();
-  const orders = trpc.admin.orders.useQuery(undefined, { refetchInterval: 30_000 });
+  const orders = trpc.admin.orders.useQuery(undefined, { refetchInterval: 15_000 });
   const setStatus = trpc.admin.setOrderStatus.useMutation({ onSuccess: () => utils.admin.orders.invalidate() });
   const [filter, setFilter] = useState<OrderStatus | "open" | "all">("open");
 
@@ -27,7 +27,7 @@ export function OrdersTab() {
           <option value="all">All orders</option>
           {ORDER_STATUSES.map(status => <option key={status} value={status}>{ORDER_STATUS_LABELS[status]}</option>)}
         </select></label>
-        <span className="muted small">Refreshes every 30 seconds</span>
+        <span className="muted small">Refreshes every 15 seconds</span>
       </div>
       {orders.isLoading && <p className="muted">Loading orders…</p>}
       {orders.data && rows.length === 0 && <p className="muted">No orders here yet.</p>}
