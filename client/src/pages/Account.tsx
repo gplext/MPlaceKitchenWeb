@@ -15,7 +15,7 @@ export function AccountPage() {
   return (
     <div className="account-page container">
       <div className="page-head row">
-        <div><span className="eyebrow">Your account</span><h1>Assalam-o-Alaikum, {user.name || "friend"}</h1></div>
+        <div><span className="label">Your account</span><h1>Assalam-o-Alaikum, {user.name || "friend"}</h1></div>
         <div className="row-actions">
           {user.role === "admin" && <Link href="/admin" className="btn btn-outline">Admin portal</Link>}
           <button type="button" className="btn btn-outline" onClick={() => void logout()}><LogOut size={16} /> Sign out</button>
@@ -29,7 +29,7 @@ export function AccountPage() {
           {orders.data?.map(order => (
             <li key={order.id}>
               <div><strong>{order.orderNumber}</strong><small>{new Date(order.createdAt).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" })} · {ORDER_CHANNEL_LABELS[order.channel]}</small></div>
-              <span>{order.items.map(item => `${item.quantity} × ${item.name}`).join(", ")}</span>
+              <span>{order.items.map(item => `${item.quantity} × ${item.name}${item.details ? ` (${item.details})` : ""}`).join(", ")}</span>
               <span className={`status status-${order.status}`}>{ORDER_STATUS_LABELS[order.status]}</span>
               <strong>{formatPKR(order.total)}</strong>
             </li>

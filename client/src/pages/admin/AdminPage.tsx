@@ -1,8 +1,9 @@
-import { Bell, BellOff, ClipboardList, LayoutGrid, LogOut, PackageCheck, Settings, UtensilsCrossed } from "lucide-react";
+import { Bell, BellOff, ChefHat, ClipboardList, LayoutGrid, LogOut, PackageCheck, Settings, UtensilsCrossed } from "lucide-react";
 import { useState } from "react";
 import { Link, Redirect } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { BookingsTab } from "./BookingsTab";
 import { CategoriesTab } from "./CategoriesTab";
 import { OrdersTab } from "./OrdersTab";
 import { PackingTab } from "./PackingTab";
@@ -15,6 +16,7 @@ const TABS = [
   { key: "products", label: "Products", icon: UtensilsCrossed, component: ProductsTab },
   { key: "categories", label: "Categories", icon: LayoutGrid, component: CategoriesTab },
   { key: "packing", label: "Packing", icon: PackageCheck, component: PackingTab },
+  { key: "bookings", label: "Kitchen hire", icon: ChefHat, component: BookingsTab },
   { key: "settings", label: "Shop details", icon: Settings, component: SettingsTab },
 ] as const;
 
@@ -38,7 +40,7 @@ function AdminPortal({ onSignOut }: { onSignOut: () => void }) {
   return (
     <div className="admin container">
       <div className="page-head row">
-        <div><span className="eyebrow">Living Foods</span><h1>Admin portal</h1></div>
+        <div><span className="label">MPlace</span><h1>Admin portal</h1></div>
         <button type="button" className="btn btn-outline" onClick={onSignOut}><LogOut size={16} /> Sign out</button>
       </div>
       <div className={`alert-bar card ${alerts.enabled ? "on" : ""}`} role="status">

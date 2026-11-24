@@ -16,6 +16,13 @@ type Form = {
   description: string;
   price: string;
   unit: string;
+  /** One per line, "Regular = 200". */
+  sizes: string;
+  choiceLabel: string;
+  /** Comma or line separated. */
+  choiceOptions: string;
+  /** One per line, "Whipped cream = 50". */
+  addons: string;
   image: string | null;
   packingImage: string | null;
   ingredients: string;
@@ -31,7 +38,7 @@ type Form = {
   sortOrder: string;
 };
 
-const blank: Form = { categoryId: "", name: "", description: "", price: "", unit: "", image: null, packingImage: null, ingredients: "", allergens: [], dietary: [], calories: "", servingSize: "", healthNotes: "", expiryDate: "", shelfLife: "", available: true, featured: false, sortOrder: "0" };
+const blank: Form = { categoryId: "", name: "", description: "", price: "", unit: "", sizes: "", choiceLabel: "Flavour", choiceOptions: "", addons: "", image: null, packingImage: null, ingredients: "", allergens: [], dietary: [], calories: "", servingSize: "", healthNotes: "", expiryDate: "", shelfLife: "", available: true, featured: false, sortOrder: "0" };
 
 const toForm = (product: ProductRow): Form => ({
   id: product.id,
@@ -40,6 +47,10 @@ const toForm = (product: ProductRow): Form => ({
   description: product.description,
   price: String(product.price),
   unit: product.unit,
+  sizes: (product.sizes ?? []).map(size => `${size.label} = ${size.price}`).join("\n"),
+  choiceLabel: product.choices?.label ?? "Flavour",
+  choiceOptions: (product.choices?.options ?? []).join(", "),
+  addons: (product.addons ?? []).map(addon => `${addon.name} = ${addon.price}`).join("\n"),
   image: product.image,
   packingImage: product.packingImage,
   ingredients: product.ingredients.join("\n"),
@@ -54,6 +65,17 @@ const toForm = (product: ProductRow): Form => ({
   featured: product.featured,
   sortOrder: String(product.sortOrder),
 });
+
+/** Reads "Name = 200" lines. Returns an error message for the first line that does not fit. */
+function parsePriced(text: string, what: string): { rows: { name: string; price: number }[]; error?: string } {
+  const rows: { name: string; price: number }[] = [];
+  for (const line of text.split("\n").map(item => item.trim()).filter(Boolean)) {
+    const match = line.match(/^(.+?)\s*[=:]\s*(?:rs\.?|pkr)?\s*(\d+)\s*$/i);
+    if (!match) return { rows, error: `${what}: write each line as "Name = price", e.g. "Large = 270".` };
+    rows.push({ name: match[1].trim(), price: Number(match[2]) });
+  }
+  return { rows };
+}
 
 const toggle = (list: string[], value: string) => (list.includes(value) ? list.filter(item => item !== value) : [...list, value]);
 
@@ -72,13 +94,21 @@ export function ProductsTab() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!form || form.categoryId === "") return setError("Choose a category.");
+    const sizes = parsePriced(form.sizes, "Sizes");
+    const addons = parsePriced(form.addons, "Add-ons");
+    if (sizes.error || addons.error) return setError(sizes.error ?? addons.error ?? null);
+    if (!sizes.rows.length && form.price === "") return setError("Enter a price, or 0 for price on request.");
+    const options = form.choiceOptions.split(/\n|,/).map(item => item.trim()).filter(Boolean);
     setError(null);
     save.mutate({
       id: form.id,
       categoryId: form.categoryId,
       name: form.name,
       description: form.description,
-      price: Number(form.price),
+      price: Number(form.price) || 0,
+      sizes: sizes.rows.length ? sizes.rows.map(row => ({ label: row.name, price: row.price })) : null,
+      choices: options.length ? { label: form.choiceLabel.trim() || "Flavour", options } : null,
+      addons: addons.rows.length ? addons.rows : null,
       unit: form.unit,
       image: form.image,
       packingImage: form.packingImage,
@@ -109,9 +139,19 @@ export function ProductsTab() {
               <option value="">Choose…</option>
               {categories.data?.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select></label>
-            <label>Price (PKR)<input required type="number" min={1} step={1} value={form.price} onChange={event => set("price", event.target.value)} /></label>
+            <label>Price (PKR, 0 = price on request)<input type="number" min={0} step={1} value={form.price} disabled={form.sizes.trim() !== ""} placeholder={form.sizes.trim() ? "Set by sizes" : ""} onChange={event => set("price", event.target.value)} /></label>
             <label>Unit<input maxLength={60} placeholder="1 plate, 500 g, box of 6" value={form.unit} onChange={event => set("unit", event.target.value)} /></label>
             <label className="span-2">Description<textarea rows={3} maxLength={2000} value={form.description} onChange={event => set("description", event.target.value)} /></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Sizes, flavours and add-ons</legend>
+          <p className="muted small">All optional. Sizes replace the price above (the menu shows "from" the lowest). Customers must pick one option from the list. Add-ons are extras added to the price.</p>
+          <div className="form-grid">
+            <label>Sizes, one per line<textarea rows={3} placeholder={"Regular = 200\nLarge = 270"} value={form.sizes} onChange={event => set("sizes", event.target.value)} /></label>
+            <label>Add-ons, one per line<textarea rows={3} placeholder={"Whipped cream = 50\nExtra malai = 20"} value={form.addons} onChange={event => set("addons", event.target.value)} /></label>
+            <label>Choice name<input maxLength={40} placeholder="Flavour" value={form.choiceLabel} onChange={event => set("choiceLabel", event.target.value)} /></label>
+            <label>Options to choose from (commas)<input placeholder="Mango, Strawberry, Peach" value={form.choiceOptions} onChange={event => set("choiceOptions", event.target.value)} /></label>
           </div>
         </fieldset>
         <fieldset>
@@ -172,7 +212,7 @@ export function ProductsTab() {
                 <td>{product.image ? <img src={product.image} alt="" width={48} height={48} /> : <span className="image-empty small">—</span>}</td>
                 <td><strong>{product.name}</strong><small>{product.unit}</small></td>
                 <td>{categoryName(product.categoryId)}</td>
-                <td>{formatPKR(product.price)}</td>
+                <td>{product.sizes?.length ? product.sizes.map(size => `${size.label} ${size.price}`).join(" · ") : product.price ? formatPKR(product.price) : "On request"}{product.choices?.options.length ? <small>{product.choices.options.length} {product.choices.label.toLowerCase()} options</small> : null}{product.addons?.length ? <small>{product.addons.length} add-ons</small> : null}</td>
                 <td className="small">{[product.ingredients.length ? "Ingredients" : null, product.calories != null ? "Calories" : null, product.expiryDate || product.shelfLife ? "Freshness" : null].filter(Boolean).join(", ") || <span className="muted">Missing</span>}</td>
                 <td><input type="checkbox" aria-label={`Show ${product.name} on the menu`} checked={product.available} disabled={quickSave.isPending} onChange={event => quickSave.mutate({ ...toPayload(product), available: event.target.checked })} /></td>
                 <td className="row-actions"><button type="button" className="btn btn-outline small" onClick={() => setForm(toForm(product))}>Edit</button><ConfirmButton label="Delete" disabled={remove.isPending} onConfirm={() => remove.mutate({ id: product.id })} /></td>
@@ -193,6 +233,9 @@ function toPayload(product: ProductRow) {
     name: product.name,
     description: product.description,
     price: product.price,
+    sizes: product.sizes,
+    choices: product.choices,
+    addons: product.addons,
     unit: product.unit,
     image: product.image,
     packingImage: product.packingImage,

@@ -5,13 +5,13 @@ import { deliveryFeeFor, formatPKR, type OrderChannel } from "@shared/shop";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useBag } from "@/bag";
 import { useCatalog } from "@/catalog";
-import { FoodArt } from "@/components/Ornaments";
+import { Vessel, vesselFor } from "@/components/Vessel";
 import { friendlyError } from "@/lib/errors";
 import { trpc } from "@/lib/trpc";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { rememberOrder } from "./OrderPlaced";
 
-const DETAILS_KEY = "living-foods-details";
+const DETAILS_KEY = "mplace-details";
 type Details = { customerName: string; phone: string; address: string; area: string; notes: string };
 const emptyDetails: Details = { customerName: "", phone: "", address: "", area: "", notes: "" };
 
@@ -26,7 +26,7 @@ function readDetails(): Details {
 
 export function BagPage() {
   usePageTitle("Your bag");
-  const { lines, subtotal, setQuantity, clear } = useBag();
+  const { lines, subtotal, setQuantity, clear, hasPriceOnRequest } = useBag();
   const { packingOptions, shop, getCategory } = useCatalog();
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -68,7 +68,7 @@ export function BagPage() {
     if (!packing) return setError("Please choose a packing option.");
     setError(null);
     setPendingChannel(channel);
-    create.mutate({ channel, packingOptionId: packing.id, items: lines.map(line => ({ productId: line.product.id, quantity: line.quantity })), ...details });
+    create.mutate({ channel, packingOptionId: packing.id, items: lines.map(line => ({ productId: line.product.id, quantity: line.quantity, size: line.selection.size ?? null, choice: line.selection.choice ?? null, addons: line.selection.addons ?? null })), ...details });
   };
 
   if (lines.length === 0) {
@@ -77,7 +77,7 @@ export function BagPage() {
         <ShoppingBag size={34} />
         <h1>Your bag is empty.</h1>
         <p>Add something delicious from the menu.</p>
-        <Link href="/menu" className="btn btn-primary">Browse the menu</Link>
+        <Link href="/menu" className="btn btn-neon">Browse the menu</Link>
       </section>
     );
   }
@@ -86,27 +86,30 @@ export function BagPage() {
 
   return (
     <div className="bag-page container">
-      <div className="page-head"><span className="eyebrow">Almost there</span><h1>Your bag</h1></div>
+      <div className="page-head"><span className="label">Almost there</span><h1 className="h-neon">Your bag</h1></div>
       <form className="bag-layout" onSubmit={submit("whatsapp")}>
         <div className="bag-main">
           <section className="card">
             <h2>Items</h2>
             <ul className="bag-lines">
-              {lines.map(({ product, quantity }, index) => (
-                <li key={product.id}>
-                  <Link href={`/product/${product.slug}`} className="bag-thumb arch-mask">
-                    {product.image ? <img src={product.image} alt="" width={64} height={77} /> : <FoodArt name="" categorySlug={getCategory(product.categoryId)?.slug ?? ""} tone={index} />}
-                  </Link>
-                  <div className="bag-line-info"><strong>{product.name}</strong><small>{product.unit ? `${product.unit} · ` : ""}{formatPKR(product.price)}</small></div>
-                  <div className="qty small" role="group" aria-label={`Quantity of ${product.name}`}>
-                    <button type="button" onClick={() => setQuantity(product.id, quantity - 1)} aria-label="One less"><Minus size={14} /></button>
-                    <span>{quantity}</span>
-                    <button type="button" onClick={() => setQuantity(product.id, quantity + 1)} aria-label="One more"><Plus size={14} /></button>
-                  </div>
-                  <strong className="bag-line-total">{formatPKR(product.price * quantity)}</strong>
-                  <button type="button" className="icon-link" onClick={() => setQuantity(product.id, 0)} aria-label={`Remove ${product.name}`}><Trash2 size={17} /></button>
-                </li>
-              ))}
+              {lines.map(({ key, product, quantity, unitPrice, details, priceOnRequest }) => {
+                const art = vesselFor(product.name, getCategory(product.categoryId)?.name);
+                return (
+                  <li key={key}>
+                    <Link href={`/product/${product.slug}`} className="bag-thumb">
+                      {product.image ? <img src={product.image} alt="" width={56} height={56} /> : <Vessel kind={art.kind} tone={art.tone} className="full" />}
+                    </Link>
+                    <div className="bag-line-info"><strong>{product.name}</strong><small>{details ? `${details} · ` : ""}{priceOnRequest ? "price on call" : formatPKR(unitPrice)}</small></div>
+                    <div className="qty small" role="group" aria-label={`Quantity of ${product.name}`}>
+                      <button type="button" onClick={() => setQuantity(key, quantity - 1)} aria-label="One less"><Minus size={14} /></button>
+                      <span>{quantity}</span>
+                      <button type="button" onClick={() => setQuantity(key, quantity + 1)} aria-label="One more"><Plus size={14} /></button>
+                    </div>
+                    <strong className="bag-line-total">{priceOnRequest ? "On call" : formatPKR(unitPrice * quantity)}</strong>
+                    <button type="button" className="icon-link" onClick={() => setQuantity(key, 0)} aria-label={`Remove ${product.name}`}><Trash2 size={17} /></button>
+                  </li>
+                );
+              })}
             </ul>
           </section>
 
@@ -148,12 +151,13 @@ export function BagPage() {
             <dt>Delivery</dt><dd>{deliveryFee ? formatPKR(deliveryFee) : shop.deliveryFee === 0 ? "Confirmed with you" : "Free"}</dd>
             <dt className="total">Total</dt><dd className="total">{formatPKR(total)}</dd>
           </dl>
+          {hasPriceOnRequest && <p className="muted small">Plus counter-priced items; we confirm their price when we call or message you.</p>}
           <p className="muted small">Pay cash on delivery. {shop.deliveryNote}</p>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <button type="submit" className="btn btn-whatsapp full" disabled={create.isPending}>
+          <button type="submit" className="btn btn-teal full" disabled={create.isPending}>
             <MessageCircle size={18} /> {pendingChannel === "whatsapp" ? "Placing order…" : "Order on WhatsApp"}
           </button>
-          <button type="button" className="btn btn-primary full" disabled={create.isPending} onClick={event => {
+          <button type="button" className="btn btn-neon full" disabled={create.isPending} onClick={event => {
             const form = (event.currentTarget as HTMLButtonElement).form;
             if (form && !form.reportValidity()) return;
             submit("phone")(event as unknown as FormEvent);

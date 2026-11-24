@@ -7,7 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { usePageTitle } from "@/lib/usePageTitle";
 import type { CreatedOrder } from "@/types";
 
-const storageKey = (orderNumber: string) => `living-foods-order-${orderNumber}`;
+const storageKey = (orderNumber: string) => `mplace-order-${orderNumber}`;
 
 /** Keeps the full order (with the customer's own details) in this tab, so the WhatsApp message can include them. */
 export function rememberOrder(order: CreatedOrder) {
@@ -33,8 +33,8 @@ export function OrderPlacedPage() {
   const order = full ?? lookup.data;
 
   const message = full
-    ? buildOrderMessage({ ...full, orderNumber: full.orderNumber!, items: full.items.map(item => ({ name: item.name, quantity: item.quantity, lineTotal: item.unitPrice * item.quantity })) })
-    : `Assalam-o-Alaikum Living Foods! I'm following up on order ${number}.`;
+    ? buildOrderMessage({ ...full, orderNumber: full.orderNumber!, items: full.items.map(item => ({ name: item.name, quantity: item.quantity, lineTotal: item.unitPrice * item.quantity, details: item.details, priceOnRequest: item.unitPrice === 0 })) })
+    : `Assalam-o-Alaikum MPlace! I'm following up on order ${number}.`;
   const sendLink = whatsAppLink(shop.whatsapp, message);
 
   // Try to open WhatsApp straight away for WhatsApp orders; the button below works if the browser blocks it.
@@ -45,35 +45,35 @@ export function OrderPlacedPage() {
   }, []);
 
   if (!order) {
-    return <section className="page-message container">{lookup.isError ? <><h1>We could not find that order.</h1><Link href="/menu" className="btn btn-primary">Back to the menu</Link></> : <p>Loading your order…</p>}</section>;
+    return <section className="page-message container">{lookup.isError ? <><h1>We could not find that order.</h1><Link href="/menu" className="btn btn-neon">Back to the menu</Link></> : <p>Loading your order…</p>}</section>;
   }
 
   return (
     <div className="order-page container">
       <div className="order-card card">
         <CheckCircle2 className="order-check" size={44} />
-        <span className="eyebrow">Order {order.orderNumber}</span>
+        <span className="label">Order {order.orderNumber}</span>
         {order.channel === "whatsapp" ? (
           <>
             <h1>One last step: send it on WhatsApp.</h1>
-            <p>Your order is saved. Tap the button to send it to Living Foods, and we'll reply to confirm the delivery time.</p>
-            <a href={sendLink} target="_blank" rel="noreferrer" className="btn btn-whatsapp big"><MessageCircle size={20} /> Send order on WhatsApp</a>
+            <p>Your order is saved. Tap the button to send it to MPlace, and we'll reply to confirm the delivery time.</p>
+            <a href={sendLink} target="_blank" rel="noreferrer" className="btn btn-teal big"><MessageCircle size={20} /> Send order on WhatsApp</a>
           </>
         ) : (
           <>
             <h1>Thank you! We'll call you shortly.</h1>
             <p>We'll call {full ? <strong>{full.phone}</strong> : "you"} to confirm your order and delivery time.</p>
-            <a href={`tel:${shop.phone.replace(/\s/g, "")}`} className="btn btn-primary big"><Phone size={20} /> Or call us on {shop.phone}</a>
+            <a href={`tel:${shop.phone.replace(/\s/g, "")}`} className="btn btn-neon big"><Phone size={20} /> Or call us on {shop.phone}</a>
           </>
         )}
         <p className="status-line">Status: <strong>{ORDER_STATUS_LABELS[order.status]}</strong></p>
         <ul className="order-lines">
-          {order.items.map(item => <li key={item.id}><span>{item.quantity} × {item.name}</span><span>{formatPKR(item.unitPrice * item.quantity)}</span></li>)}
+          {order.items.map(item => <li key={item.id}><span>{item.quantity} × {item.name}{item.details && <small>{item.details}</small>}</span><span>{item.unitPrice ? formatPKR(item.unitPrice * item.quantity) : "On call"}</span></li>)}
           <li><span>Packing: {order.packingName}</span><span>{order.packingPrice ? formatPKR(order.packingPrice) : "Free"}</span></li>
           <li><span>Delivery</span><span>{order.deliveryFee ? formatPKR(order.deliveryFee) : "Confirmed with you"}</span></li>
           <li className="total"><span>Total, cash on delivery</span><span>{formatPKR(order.total)}</span></li>
         </ul>
-        <Link href="/menu" className="btn btn-outline">Back to the menu</Link>
+        <Link href="/menu" className="btn btn-ghost">Back to the menu</Link>
       </div>
     </div>
   );

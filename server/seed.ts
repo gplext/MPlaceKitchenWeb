@@ -10,17 +10,33 @@ import * as seed from "./seedData";
 async function main() {
   const db = getDb();
 
+  // Chacha's items are only added to a category created in this run, so items the admin deletes or renames never come back.
+  const newCategories = new Set<string>();
   for (const category of seed.categories) {
     const [existing] = await db.select().from(categories).where(eq(categories.slug, category.slug)).limit(1);
-    if (!existing) await db.insert(categories).values({ ...category, active: true });
+    if (!existing) { await db.insert(categories).values({ ...category, active: true }); newCategories.add(category.slug); }
+    // Categories made before kitchens existed get their kitchen once; a kitchen the admin set is never changed.
+    else if (!existing.kitchen) await db.update(categories).set({ kitchen: category.kitchen }).where(eq(categories.id, existing.id));
   }
   const categoryIds = new Map((await db.select().from(categories)).map(category => [category.slug, category.id]));
 
-  for (const { category, ...product } of seed.products) {
+  const menu = [...seed.chachaProducts.filter(product => newCategories.has(product.category)), ...seed.products];
+  for (const { category, ...product } of menu) {
     const [existing] = await db.select({ id: products.id }).from(products).where(eq(products.slug, product.slug)).limit(1);
     const categoryId = categoryIds.get(category);
     if (existing || !categoryId) continue;
-    await db.insert(products).values({ ...product, categoryId, featured: product.featured ?? false, ingredients: [], allergens: [], dietary: [], available: true });
+    await db.insert(products).values({
+      ...product,
+      categoryId,
+      sizes: product.sizes ?? null,
+      choices: product.choices ?? null,
+      addons: product.addons ?? null,
+      featured: product.featured ?? false,
+      ingredients: [],
+      allergens: [],
+      dietary: [],
+      available: true,
+    });
   }
 
   for (const { recommendedForSlugs, ...option } of seed.packingOptions) {
@@ -30,10 +46,11 @@ async function main() {
     await db.insert(packingOptions).values({ ...option, recommendedFor, active: true });
   }
 
-  const [settings] = await db.select({ id: shopSettings.id }).from(shopSettings).where(eq(shopSettings.id, 1)).limit(1);
+  const [settings] = await db.select({ id: shopSettings.id, dailySpecials: shopSettings.dailySpecials }).from(shopSettings).where(eq(shopSettings.id, 1)).limit(1);
   if (!settings) await db.insert(shopSettings).values(seed.settings);
+  else if (!settings.dailySpecials) await db.update(shopSettings).set({ dailySpecials: seed.dailySpecials }).where(eq(shopSettings.id, 1));
 
-  console.log(`Menu ready: ${seed.categories.length} categories, ${seed.products.length} starter products, ${seed.packingOptions.length} packing options.`);
+  console.log(`Menu ready: ${seed.categories.length} categories, ${seed.chachaProducts.length} Chacha's items, ${seed.products.length} starter products, ${seed.packingOptions.length} packing options.`);
 
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD;

@@ -2,6 +2,7 @@ import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   categories,
+  kitchenBookings,
   orderItems,
   orders,
   packingOptions,
@@ -10,12 +11,13 @@ import {
   users,
   type Category,
   type InsertProduct,
+  type KitchenBooking,
   type Order,
   type OrderItem,
   type PackingOption,
   type ShopSettings,
 } from "../drizzle/schema";
-import { deliveryFeeFor, type OrderChannel, type OrderStatus } from "../shared/shop";
+import { deliveryFeeFor, priceFor, selectionKey, type BookingStatus, type OrderChannel, type OrderStatus, type Selection } from "../shared/shop";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -118,6 +120,11 @@ export async function listAllProducts() {
   return getDb().select().from(products).orderBy(asc(products.categoryId), asc(products.sortOrder), asc(products.id));
 }
 
+export async function getProductById(id: number) {
+  const [product] = await getDb().select().from(products).where(eq(products.id, id)).limit(1);
+  return product;
+}
+
 export async function getCategoryById(id: number) {
   const [category] = await getDb().select().from(categories).where(eq(categories.id, id)).limit(1);
   return category;
@@ -172,30 +179,39 @@ export type NewOrder = {
   area: string;
   notes?: string | null;
   packingOptionId: number;
-  items: { productId: number; quantity: number }[];
+  items: ({ productId: number; quantity: number } & Selection)[];
 };
 
-/** Prices, packing charge and delivery fee are all worked out here from the database; the browser only sends ids and quantities. */
+/** Prices, packing charge and delivery fee are all worked out here from the database; the browser only sends ids, choices and quantities. */
 export async function createOrder(input: NewOrder): Promise<Order & { items: OrderItem[] }> {
   const db = getDb();
-  const quantities = new Map<number, number>();
-  for (const item of input.items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  // The same product with the same choices becomes one line.
+  const merged = new Map<string, { productId: number; quantity: number } & Selection>();
+  for (const item of input.items) {
+    const key = selectionKey(item.productId, item);
+    const existing = merged.get(key);
+    merged.set(key, existing ? { ...existing, quantity: existing.quantity + item.quantity } : { ...item });
+  }
 
   const orderId = await db.transaction(async tx => {
-    const ids = [...quantities.keys()];
+    const ids = [...new Set([...merged.values()].map(item => item.productId))];
     const rows = await tx.select().from(products).where(inArray(products.id, ids));
     const byId = new Map(rows.map(row => [row.id, row]));
-    const lines = ids.map(productId => {
-      const product = byId.get(productId);
+    const lines = [...merged.values()].map(item => {
+      const product = byId.get(item.productId);
       if (!product || !product.available) throw new ShopError("Something in your bag is no longer on the menu. Please review your bag.");
-      return { product, quantity: quantities.get(productId)! };
+      try {
+        return { product, quantity: item.quantity, ...priceFor(product, item) };
+      } catch (error) {
+        throw new ShopError(`${product.name}: ${error instanceof Error ? error.message : "check your choices"}`);
+      }
     });
 
     const [packing] = await tx.select().from(packingOptions).where(eq(packingOptions.id, input.packingOptionId)).limit(1);
     if (!packing || !packing.active) throw new ShopError("Please choose a packing option.");
 
     const [settings] = await tx.select().from(shopSettings).where(eq(shopSettings.id, 1)).limit(1);
-    const subtotal = lines.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+    const subtotal = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
     const deliveryFee = deliveryFeeFor(subtotal, settings?.deliveryFee ?? 0, settings?.freeDeliveryOver ?? 0);
 
     const [created] = await tx.insert(orders).values({
@@ -212,19 +228,45 @@ export async function createOrder(input: NewOrder): Promise<Order & { items: Ord
       deliveryFee,
       total: subtotal + packing.price + deliveryFee,
     }).$returningId();
-    await tx.update(orders).set({ orderNumber: `LF-${1000 + created.id}` }).where(eq(orders.id, created.id));
-    await tx.insert(orderItems).values(lines.map(({ product, quantity }) => ({
+    await tx.update(orders).set({ orderNumber: `MP-${1000 + created.id}` }).where(eq(orders.id, created.id));
+    await tx.insert(orderItems).values(lines.map(({ product, quantity, unitPrice, details }) => ({
       orderId: created.id,
       productId: product.id,
       name: product.name,
       unit: product.unit,
-      unitPrice: product.price,
+      unitPrice,
       quantity,
+      details: details.slice(0, 255),
     })));
     return created.id;
   });
 
   return (await getOrderById(orderId))!;
+}
+
+/** Orders the kitchen is still working on, for the public "kitchen queue" meter. Only a count leaves the server. */
+export async function countActiveOrders() {
+  const [{ count }] = await getDb().select({ count: sql<number>`count(*)` }).from(orders)
+    .where(inArray(orders.status, ["new", "confirmed", "preparing", "out_for_delivery"]));
+  return Number(count);
+}
+
+// ---------------------------------------------------------------------------
+// Kitchen hire
+// ---------------------------------------------------------------------------
+
+export async function createBooking(values: Omit<KitchenBooking, "id" | "status" | "createdAt">) {
+  const [result] = await getDb().insert(kitchenBookings).values(values).$returningId();
+  return result.id;
+}
+
+export async function listBookings(limit = 200) {
+  return getDb().select().from(kitchenBookings).orderBy(desc(kitchenBookings.id)).limit(limit);
+}
+
+export async function setBookingStatus(id: number, status: BookingStatus) {
+  const [result] = await getDb().update(kitchenBookings).set({ status }).where(eq(kitchenBookings.id, id));
+  return result.affectedRows > 0;
 }
 
 async function withItems(rows: Order[]) {

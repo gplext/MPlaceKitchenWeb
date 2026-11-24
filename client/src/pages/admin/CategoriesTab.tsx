@@ -1,11 +1,12 @@
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { KITCHENS } from "@shared/shop";
 import { friendlyError } from "@/lib/errors";
 import { trpc } from "@/lib/trpc";
 import { ConfirmButton } from "./ImageField";
 
-type Form = { id?: number; name: string; description: string; sortOrder: string; active: boolean };
-const blank: Form = { name: "", description: "", sortOrder: "0", active: true };
+type Form = { id?: number; name: string; description: string; kitchen: string; sortOrder: string; active: boolean };
+const blank: Form = { name: "", description: "", kitchen: KITCHENS[0], sortOrder: "0", active: true };
 
 export function CategoriesTab() {
   const utils = trpc.useUtils();
@@ -21,7 +22,7 @@ export function CategoriesTab() {
     event.preventDefault();
     if (!form) return;
     setError(null);
-    save.mutate({ id: form.id, name: form.name, description: form.description, sortOrder: Number(form.sortOrder) || 0, active: form.active });
+    save.mutate({ id: form.id, name: form.name, description: form.description, kitchen: form.kitchen, sortOrder: Number(form.sortOrder) || 0, active: form.active });
   };
 
   return (
@@ -32,6 +33,7 @@ export function CategoriesTab() {
           <h2>{form.id ? `Edit ${form.name}` : "New category"}</h2>
           <div className="form-grid">
             <label>Name<input required maxLength={80} value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></label>
+            <label>Kitchen<input list="kitchen-names" maxLength={40} placeholder="Chacha's" value={form.kitchen} onChange={event => setForm({ ...form, kitchen: event.target.value })} /><datalist id="kitchen-names">{KITCHENS.map(name => <option key={name} value={name} />)}</datalist></label>
             <label>Sort order<input type="number" min={0} value={form.sortOrder} onChange={event => setForm({ ...form, sortOrder: event.target.value })} /></label>
             <label className="span-2">Short description<input maxLength={255} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /></label>
             <label className="check"><input type="checkbox" checked={form.active} onChange={event => setForm({ ...form, active: event.target.checked })} /> Show on the site</label>
@@ -45,17 +47,18 @@ export function CategoriesTab() {
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="table-wrap">
         <table className="admin-table">
-          <thead><tr><th>Name</th><th>Description</th><th>Products</th><th>Shown</th><th>Order</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Kitchen</th><th>Description</th><th>Products</th><th>Shown</th><th>Order</th><th></th></tr></thead>
           <tbody>
             {categories.data?.map(category => (
               <tr key={category.id}>
                 <td><strong>{category.name}</strong><small>/menu/{category.slug}</small></td>
+                <td>{category.kitchen || "—"}</td>
                 <td className="small">{category.description}</td>
                 <td>{products.data?.filter(product => product.categoryId === category.id).length ?? "…"}</td>
                 <td>{category.active ? "Yes" : "Hidden"}</td>
                 <td>{category.sortOrder}</td>
                 <td className="row-actions">
-                  <button type="button" className="btn btn-outline small" onClick={() => { setError(null); setForm({ id: category.id, name: category.name, description: category.description, sortOrder: String(category.sortOrder), active: category.active }); }}>Edit</button>
+                  <button type="button" className="btn btn-outline small" onClick={() => { setError(null); setForm({ id: category.id, name: category.name, description: category.description, kitchen: category.kitchen, sortOrder: String(category.sortOrder), active: category.active }); }}>Edit</button>
                   <ConfirmButton label="Delete" disabled={remove.isPending} onConfirm={() => { setError(null); remove.mutate({ id: category.id }); }} />
                 </td>
               </tr>

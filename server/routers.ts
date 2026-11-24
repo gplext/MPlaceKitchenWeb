@@ -1,5 +1,5 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { ALLERGENS, DIETARY_TAGS, ORDER_CHANNELS, ORDER_STATUSES } from "@shared/shop";
+import { ALLERGENS, BOOKING_HOURS, BOOKING_STATUSES, DIETARY_TAGS, ORDER_CHANNELS, ORDER_STATUSES } from "@shared/shop";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { hashPassword, signSession, toPublicUser, verifyPassword } from "./_core/auth";
@@ -39,11 +39,17 @@ async function uniqueSlug(table: "categories" | "products", name: string, except
   return slug;
 }
 
+const optionName = z.string().trim().min(1).max(60);
 const productInput = z.object({
   categoryId: id,
   name: text(120),
   description: z.string().trim().max(2000).default(""),
-  price: money.refine(value => value > 0, "Enter a price above 0"),
+  /** 0 = price on request. With sizes the server stores the lowest size price here. */
+  price: money,
+  sizes: z.array(z.object({ label: optionName, price: money.refine(value => value > 0, "Give every size a price") })).max(8).nullable()
+    .refine(list => !list || new Set(list.map(size => size.label.toLowerCase())).size === list.length, "Size names must be different"),
+  choices: z.object({ label: z.string().trim().max(40), options: z.array(optionName).max(30) }).nullable(),
+  addons: z.array(z.object({ name: optionName, price: money })).max(20).nullable(),
   unit: z.string().trim().max(60).default(""),
   image: mediaPath,
   packingImage: mediaPath,
@@ -95,6 +101,25 @@ export const appRouter = router({
 
   catalog: router({
     all: publicProcedure.query(() => db.getCatalog()),
+    /** How busy the kitchen is right now, shown as a meter on the home page. */
+    queue: publicProcedure.query(async () => ({ active: await db.countActiveOrders() })),
+  }),
+
+  kitchenHire: router({
+    /** Outside cooks and caterers ask to hire the kitchen; the shop confirms on WhatsApp or by phone. */
+    request: publicProcedure
+      .input(z.object({
+        name: text(120),
+        phone,
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date"),
+        startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a start time"),
+        hours: z.number().int().refine(value => (BOOKING_HOURS as readonly number[]).includes(value), "Choose how many hours"),
+        purpose: z.string().trim().max(255).default(""),
+      }))
+      .mutation(async ({ input }) => {
+        if (input.date < new Date().toISOString().slice(0, 10)) throw new TRPCError({ code: "BAD_REQUEST", message: "Choose today or a later date." });
+        return { id: await db.createBooking(input) };
+      }),
   }),
 
   orders: router({
@@ -102,7 +127,13 @@ export const appRouter = router({
     create: publicProcedure
       .input(z.object({
         channel: z.enum(ORDER_CHANNELS),
-        items: z.array(z.object({ productId: id, quantity: z.number().int().min(1).max(50) })).min(1, "Your bag is empty").max(40),
+        items: z.array(z.object({
+          productId: id,
+          quantity: z.number().int().min(1).max(50),
+          size: z.string().max(60).nullish(),
+          choice: z.string().max(60).nullish(),
+          addons: z.array(z.string().max(60)).max(20).nullish(),
+        })).min(1, "Your bag is empty").max(40),
         packingOptionId: id,
         customerName: text(120),
         phone,
@@ -139,7 +170,7 @@ export const appRouter = router({
 
     categories: adminProcedure.query(() => db.listCategories()),
     saveCategory: adminProcedure
-      .input(z.object({ id: id.optional(), name: text(80), description: z.string().trim().max(255).default(""), sortOrder: z.number().int().min(0).max(10000).default(0), active: z.boolean() }))
+      .input(z.object({ id: id.optional(), name: text(80), description: z.string().trim().max(255).default(""), kitchen: z.string().trim().max(40).default(""), sortOrder: z.number().int().min(0).max(10000).default(0), active: z.boolean() }))
       .mutation(async ({ input: { id: categoryId, ...values } }) => {
         const slug = await uniqueSlug("categories", values.name, categoryId);
         return { id: await db.saveCategory({ ...values, slug }, categoryId) };
@@ -154,8 +185,15 @@ export const appRouter = router({
       .input(productInput.extend({ id: id.optional() }))
       .mutation(async ({ input: { id: productId, ...values } }) => {
         if (!(await db.getCategoryById(values.categoryId))) throw new TRPCError({ code: "BAD_REQUEST", message: "Choose a category." });
-        const slug = await uniqueSlug("products", values.name, productId);
-        return { id: await db.saveProduct({ ...values, slug }, productId), slug };
+        // A product keeps its web address when renamed, so shared links and the starter menu never break.
+        const existing = productId ? await db.getProductById(productId) : undefined;
+        if (productId && !existing) throw new TRPCError({ code: "NOT_FOUND" });
+        const slug = existing?.slug ?? await uniqueSlug("products", values.name);
+        const sizes = values.sizes?.length ? values.sizes : null;
+        const choices = values.choices?.options.length ? { label: values.choices.label || "Flavour", options: values.choices.options } : null;
+        const addons = values.addons?.length ? values.addons : null;
+        const price = sizes ? Math.min(...sizes.map(size => size.price)) : values.price;
+        return { id: await db.saveProduct({ ...values, price, sizes, choices, addons, slug }, productId), slug };
       }),
     deleteProduct: adminProcedure.input(z.object({ id })).mutation(async ({ input }) => {
       await db.deleteProduct(input.id);
@@ -186,6 +224,14 @@ export const appRouter = router({
       .input(z.object({ dataBase64: z.string().min(1).max(8_000_000) }))
       .mutation(async ({ input }) => ({ path: await saveImage(input.dataBase64).catch(asBadRequest) })),
 
+    bookings: adminProcedure.query(() => db.listBookings()),
+    setBookingStatus: adminProcedure
+      .input(z.object({ id, status: z.enum(BOOKING_STATUSES) }))
+      .mutation(async ({ input }) => {
+        if (!(await db.setBookingStatus(input.id, input.status))) throw new TRPCError({ code: "NOT_FOUND" });
+        return { success: true } as const;
+      }),
+
     alerts: adminProcedure.query(() => alertStatus()),
     sendTestAlert: adminProcedure.mutation(() => sendOrderAlerts(SAMPLE_ORDER)),
 
@@ -199,6 +245,7 @@ export const appRouter = router({
         deliveryFee: money,
         freeDeliveryOver: money,
         deliveryNote: z.string().trim().max(255).default(""),
+        dailySpecials: z.array(z.string().trim().max(80)).length(7),
       }))
       .mutation(async ({ input }) => {
         await db.updateSettings(input);

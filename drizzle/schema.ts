@@ -1,5 +1,5 @@
 import { boolean, customType, date, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
-import { ORDER_CHANNELS, ORDER_STATUSES } from "../shared/shop";
+import { BOOKING_STATUSES, ORDER_CHANNELS, ORDER_STATUSES, type ProductAddon, type ProductChoice, type ProductSize } from "../shared/shop";
 
 /**
  * JSON column that reads the same on MySQL and MariaDB. MariaDB stores JSON as
@@ -29,6 +29,8 @@ export const categories = mysqlTable("categories", {
   slug: varchar("slug", { length: 80 }).notNull().unique(),
   name: varchar("name", { length: 80 }).notNull(),
   description: varchar("description", { length: 255 }).notNull().default(""),
+  /** Which kitchen (department) the category belongs to, e.g. "Chacha's" or "Dairy Shop". Groups the menu. */
+  kitchen: varchar("kitchen", { length: 40 }).notNull().default(""),
   sortOrder: int("sortOrder").notNull().default(0),
   active: boolean("active").notNull().default(true),
 });
@@ -39,8 +41,14 @@ export const products = mysqlTable("products", {
   categoryId: int("categoryId").notNull(),
   name: varchar("name", { length: 120 }).notNull(),
   description: text("description").notNull(),
-  /** Whole rupees (PKR). */
+  /** Whole rupees (PKR). 0 = price on request (told on the call, e.g. items on the display counter). With sizes, the lowest size price. */
   price: int("price").notNull(),
+  /** Optional sizes, each with its own price, e.g. Regular 200 / Large 270. */
+  sizes: json<ProductSize[]>("sizes"),
+  /** Optional single choice the customer must make, e.g. Flavour: Mango, Strawberry. */
+  choices: json<ProductChoice>("choices"),
+  /** Optional extras added to the price, e.g. Whipped cream +50. */
+  addons: json<ProductAddon[]>("addons"),
   /** What one unit is, e.g. "1 plate", "500 g", "Box of 6". */
   unit: varchar("unit", { length: 60 }).notNull().default(""),
   /** Paths under /media, set from the admin portal. */
@@ -108,7 +116,22 @@ export const orderItems = mysqlTable("orderItems", {
   unit: varchar("unit", { length: 60 }).notNull().default(""),
   unitPrice: int("unitPrice").notNull(),
   quantity: int("quantity").notNull(),
+  /** Size, flavour and add-ons the customer chose, e.g. "Large · Mango · + Whipped cream". */
+  details: varchar("details", { length: 255 }).notNull().default(""),
 }, table => [index("orderItems_orderId_idx").on(table.orderId)]);
+
+/** Requests from outside cooks and caterers to hire the MPlace kitchen by the hour. */
+export const kitchenBookings = mysqlTable("kitchenBookings", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 120 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  startTime: varchar("startTime", { length: 5 }).notNull(),
+  hours: int("hours").notNull(),
+  purpose: varchar("purpose", { length: 255 }).notNull().default(""),
+  status: mysqlEnum("status", BOOKING_STATUSES).notNull().default("new"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 /** One row (id 1) of shop details the admin can change without touching code. */
 export const shopSettings = mysqlTable("shopSettings", {
@@ -122,6 +145,8 @@ export const shopSettings = mysqlTable("shopSettings", {
   /** Orders at or above this subtotal deliver free. 0 = never automatic. */
   freeDeliveryOver: int("freeDeliveryOver").notNull().default(0),
   deliveryNote: varchar("deliveryNote", { length: 255 }).notNull().default(""),
+  /** Chacha's meal of the day, Sunday first (7 entries). */
+  dailySpecials: json<string[]>("dailySpecials"),
 });
 
 export type User = typeof users.$inferSelect;
@@ -132,3 +157,4 @@ export type PackingOption = typeof packingOptions.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type ShopSettings = typeof shopSettings.$inferSelect;
+export type KitchenBooking = typeof kitchenBookings.$inferSelect;

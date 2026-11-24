@@ -48,11 +48,11 @@ export function OrdersTab() {
                 {order.notes && <p className="muted">Note: {order.notes}</p>}
                 <div className="row-actions">
                   <a className="btn btn-outline small" href={`tel:${order.phone.replace(/\s/g, "")}`}><Phone size={14} /> {order.phone}</a>
-                  <a className="btn btn-outline small" href={whatsAppLink(order.phone, `Assalam-o-Alaikum ${order.customerName}, this is Living Foods about your order ${order.orderNumber}.`)} target="_blank" rel="noreferrer"><MessageCircle size={14} /> WhatsApp</a>
+                  <a className="btn btn-outline small" href={whatsAppLink(order.phone, `Assalam-o-Alaikum ${order.customerName}, this is MPlace about your order ${order.orderNumber}.`)} target="_blank" rel="noreferrer"><MessageCircle size={14} /> WhatsApp</a>
                 </div>
               </div>
               <ul>
-                {order.items.map(item => <li key={item.id}>{item.quantity} × {item.name} <span>{formatPKR(item.unitPrice * item.quantity)}</span></li>)}
+                {order.items.map(item => <li key={item.id}><span>{item.quantity} × {item.name}{item.details && <small>{item.details}</small>}</span> <span>{item.unitPrice ? formatPKR(item.unitPrice * item.quantity) : "Price at counter"}</span></li>)}
                 <li>Packing: {order.packingName} <span>{order.packingPrice ? formatPKR(order.packingPrice) : "Free"}</span></li>
                 <li>Delivery <span>{order.deliveryFee ? formatPKR(order.deliveryFee) : "To confirm"}</span></li>
                 <li className="total">Total <span>{formatPKR(order.total)}</span></li>

@@ -14,7 +14,7 @@ export type AlertOrder = {
   notes: string | null;
   packingName: string;
   total: number;
-  items: { name: string; quantity: number }[];
+  items: { name: string; quantity: number; details?: string | null }[];
 };
 
 export type AlertResult = { channel: "email" | "whatsapp"; ok: boolean; detail: string };
@@ -65,14 +65,15 @@ export function alertStatus() {
   };
 }
 
-const itemsLine = (order: AlertOrder) => order.items.map(item => `${item.quantity} x ${item.name}`).join(", ");
+const itemLabel = (item: AlertOrder["items"][number]) => `${item.quantity} x ${item.name}${item.details ? ` (${item.details})` : ""}`;
+const itemsLine = (order: AlertOrder) => order.items.map(itemLabel).join(", ");
 
 /** The email body: everything needed to call the customer and start preparing. */
 export function orderAlertText(order: AlertOrder): string {
   const lines = [
     `New order ${order.orderNumber} (${ORDER_CHANNEL_LABELS[order.channel]})`,
     "",
-    ...order.items.map(item => `${item.quantity} x ${item.name}`),
+    ...order.items.map(itemLabel),
     `Packing: ${order.packingName}`,
     `Total: ${formatPKR(order.total)}`,
     "",

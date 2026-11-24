@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { DAY_NAMES } from "@shared/shop";
 import { friendlyError } from "@/lib/errors";
 import { trpc } from "@/lib/trpc";
 
-type Form = { phone: string; whatsapp: string; address: string; openingHours: string; deliveryFee: string; freeDeliveryOver: string; deliveryNote: string };
+type Form = { phone: string; whatsapp: string; address: string; openingHours: string; deliveryFee: string; freeDeliveryOver: string; deliveryNote: string; dailySpecials: string[] };
 
 export function SettingsTab() {
   const utils = trpc.useUtils();
@@ -16,13 +17,13 @@ export function SettingsTab() {
 
   useEffect(() => {
     if (settings.data && !form) {
-      const { phone, whatsapp, address, openingHours, deliveryFee, freeDeliveryOver, deliveryNote } = settings.data;
-      setForm({ phone, whatsapp, address, openingHours, deliveryFee: String(deliveryFee), freeDeliveryOver: String(freeDeliveryOver), deliveryNote });
+      const { phone, whatsapp, address, openingHours, deliveryFee, freeDeliveryOver, deliveryNote, dailySpecials } = settings.data;
+      setForm({ phone, whatsapp, address, openingHours, deliveryFee: String(deliveryFee), freeDeliveryOver: String(freeDeliveryOver), deliveryNote, dailySpecials: DAY_NAMES.map((_, index) => dailySpecials?.[index] ?? "") });
     }
   }, [settings.data, form]);
 
   if (!form) return <p className="muted">Loading…</p>;
-  const field = (key: keyof Form) => ({ value: form[key], onChange: (event: { target: { value: string } }) => { setMessage(null); setForm({ ...form, [key]: event.target.value }); } });
+  const field = (key: Exclude<keyof Form, "dailySpecials">) => ({ value: form[key], onChange: (event: { target: { value: string } }) => { setMessage(null); setForm({ ...form, [key]: event.target.value }); } });
   const submit = (event: FormEvent) => {
     event.preventDefault();
     save.mutate({ ...form, deliveryFee: Number(form.deliveryFee) || 0, freeDeliveryOver: Number(form.freeDeliveryOver) || 0 });
@@ -42,6 +43,15 @@ export function SettingsTab() {
         <label>Free delivery from (PKR, 0 = never automatic)<input type="number" min={0} {...field("freeDeliveryOver")} /></label>
         <label className="span-2">Delivery note<input maxLength={255} {...field("deliveryNote")} /></label>
       </div>
+      <fieldset>
+        <legend>Chacha's meal of the day</legend>
+        <p className="muted small">Shown on the home page under "On the tawa today". Leave a day empty to skip it.</p>
+        <div className="form-grid">
+          {DAY_NAMES.map((day, index) => (
+            <label key={day}>{day}<input maxLength={80} value={form.dailySpecials[index]} onChange={event => { setMessage(null); setForm({ ...form, dailySpecials: form.dailySpecials.map((value, at) => (at === index ? event.target.value : value)) }); }} /></label>
+          ))}
+        </div>
+      </fieldset>
       {message && <p className={message.ok ? "form-ok" : "form-error"} role="status">{message.text}</p>}
       <button type="submit" className="btn btn-primary" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save shop details"}</button>
     </form>

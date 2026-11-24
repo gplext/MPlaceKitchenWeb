@@ -1,36 +1,44 @@
-# Living Foods
+# MPlace by Living Foods
 
-Online shop for Living Foods, 7/83 Shahrah-e-Quaid-e-Azam, Mall Road, Lahore.
-Dairy, frozen foods, ready-made meals and desserts, ordered on WhatsApp or by phone, paid on delivery.
+Online ordering for MPlace, 7/83 Shahrah-e-Quaid-e-Azam, Mall Road, Lahore: Chacha's chai, coffee and eatery, Living Foods dairy, the MPlace kitchen and ready-made packs, ordered on WhatsApp or by phone and paid on delivery.
 
-Stack: React 19 + Vite, Express + tRPC, MySQL (Drizzle ORM). Same setup as the Living Art shop, so it deploys on Coolify the same way.
+Stack: React 19 + Vite, Express + tRPC, MySQL (Drizzle ORM). Deploys on Coolify like the Living Art shop.
 
 ## What it does
 
-- **Storefront** in a Mughal and truck-art style: products are painted panels on the side of a truck, photos are cut to a Mughal arch.
-- **Checkout without an account.** Customers fill a bag, choose a packing option, enter name, phone, area and address, then either:
-  - **Order on WhatsApp**: the order is saved and WhatsApp opens with the full order typed out, sent to the shop's WhatsApp number; or
-  - **Place order, we'll call you**: the order is saved and the shop calls the customer to confirm.
+- **"After Dark" storefront**: a flickering neon MPLACE sign, a script tube that draws itself, a dish marquee, a "pouring menu" where each cup, glass or bowl fills when you hover it, a spinning tawa for the meal of the day, a live kitchen-queue meter and stairs that light up on the way to the shop. Motion is switched off for visitors who ask their device for reduced motion.
+- **Menu grouped by kitchen**: each category belongs to a kitchen (Chacha's, Dairy Shop, MPlace Kitchen, Ready-made). `/menu` shows them all; `/menu/chachas` one kitchen; old `/menu/<category>` links still work.
+- **Chacha's menu** from the printed card: chai, coffee, burgers and sandwiches, ice-cream, slush, Sip Station, fresh from the oven, desi delights and the daily meal special.
+- **Sizes, flavours and add-ons**: a product can have sizes with their own prices (Regular 200 / Large 270), one required choice (flavour, taste or item) and paid extras (whipped cream +50). Items with choices open a quick picker. The server re-checks every choice and works out the price itself.
+- **Price on request**: a price of 0 means "price at counter" (items on the food display station). They can still be ordered; the shop confirms the price on the call and the WhatsApp message says so.
+- **Meal of the day**: Chacha's dish for each day of the week, edited in Shop details, shown on the home page with today's lit up.
+- **Kitchen hire**: outside cooks and caterers pick a date, start time and 2 to 8 hours. The request is saved for the admin portal and sent to the shop on WhatsApp.
+- **Checkout without an account.** Customers fill a bag, choose a packing option, enter name, phone, area and address, then either send the order on WhatsApp (it is saved first, then WhatsApp opens with the order typed out) or ask to be called. Order numbers look like MP-1042.
 - **Optional accounts**: signed-in customers see their past orders.
 - **Admin portal** at `/admin`:
-  - Orders: new orders, status (new, confirmed, preparing, out for delivery, delivered, cancelled), one-tap call or WhatsApp to the customer.
-  - Products: name, category, price, unit, description, product photo, packing photo, ingredients, allergens, dietary labels, calories and serving, health information, expiry date, shelf life and storage, show or hide, feature on home page.
-  - Categories: add, rename, reorder, hide, delete (only when empty).
-  - Packing options: name, charge, photo, which categories it is recommended for, default.
-  - Shop details: phone, WhatsApp number that receives orders, address, opening hours, delivery charge and free-delivery threshold.
+  - Orders: new orders with every size, flavour and add-on, status (new, confirmed, preparing, out for delivery, delivered, cancelled), one-tap call or WhatsApp.
+  - Products: name, category, price, sizes, choices, add-ons, unit, description, photos, ingredients, allergens, dietary labels, calories, health information, expiry and shelf life, show or hide, feature as a signature. A product keeps its web address when renamed.
+  - Categories: add, rename, choose the kitchen, reorder, hide, delete (only when empty).
+  - Packing options, and Kitchen hire requests with their status.
+  - Shop details: phone, WhatsApp number that receives orders, address, opening hours, delivery charge, free-delivery threshold and the meal of the day.
 - **Order alerts** (see below): a chime, desktop notification and tab count in the admin portal, plus an email and a WhatsApp message to the shop for every new order.
 
-## Placeholders to replace before going live
+## Before going live
 
 | What | Where to change it |
 | --- | --- |
-| Product prices (Biryani 650, Bun Kebab 250, Chicken Burger 450, Banana Cake 900, Chocolate Brownie 250) | Admin portal, Products |
-| Ingredients, calories, allergens, shelf life (left empty on purpose) | Admin portal, Products |
-| Product and packing photos | Admin portal, Products |
-| Insulated bag charge (PKR 100) | Admin portal, Packing |
-| Phone and WhatsApp number (0345 9024745, taken from livingfoodspk.com) | Admin portal, Shop details |
-| Opening hours, delivery charge | Admin portal, Shop details |
-| Logo | Now the Kitchen & Marketplace logo: `client/public/logo.png` (mark, header), `logo-full.png` (footer) and `favicon.png`. Replace those files to change it. |
+| Chacha's prices are from the printed menu card; check them | Admin portal, Products |
+| "Price at counter" items (patties and bakes, desi delights, meal of the day) | Give them a price in Products, or keep 0 to confirm on the call |
+| Starter items from the first version (Biryani, Bun Kebab, Chicken Burger, Banana Cake, Chocolate Brownie) and any demo items | Admin portal, Products: edit, hide or delete |
+| Product and packing photos (the site draws a neon cup, glass or bowl until there is one) | Admin portal, Products |
+| Opening hours (shown on the hero and in the footer), delivery charge | Admin portal, Shop details |
+| Phone and WhatsApp number that receives orders (0345 9024745) | Admin portal, Shop details |
+| Chacha's counter phone, email and Instagram in the footer | `CHACHAS` in `client/src/components/Layout.tsx` |
+| Logo | `client/public/logo.png` (mark, header), `logo-full.png` (footer, sign-in) and `favicon.png`, cut from `mplace-logo.jpg` |
+
+## Updating an existing site
+
+This version adds database columns and Chacha's menu. After deploying, run `pnpm db:setup` once in the app's terminal (or keep it as the post-deployment command). It applies the new migration, gives the existing categories their kitchen, adds Chacha's categories and items, and fills in the meal of the day. It never changes anything the admin has edited, and Chacha's items are only added the first time their category is created, so items you delete later stay deleted.
 
 ## Order alerts
 
@@ -65,7 +73,7 @@ WhatsApp only lets a business send a message first through an approved template,
    - Name: `new_order_alert`, category **Utility**, language **English**.
    - Body (six variables, in this order):
      ```
-     New order {{1}} at Living Foods.
+     New order {{1}} at MPlace.
      Customer: {{2}}, {{3}}
      Address: {{4}}
      Items: {{5}}

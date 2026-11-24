@@ -8,6 +8,13 @@
       "when": 1792312504110,
       "tag": "0000_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1795520501690,
+      "tag": "0001_mplace_menu",
+      "breakpoints": true
     }
   ]
 }
