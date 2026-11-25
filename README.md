@@ -30,7 +30,8 @@ Stack: React 19 + Vite, Express + tRPC, MySQL (Drizzle ORM). Deploys on Coolify 
 | Chacha's prices are from the printed menu card; check them | Admin portal, Products |
 | "Price at counter" items (patties and bakes, desi delights, meal of the day) | Give them a price in Products, or keep 0 to confirm on the call |
 | Starter items from the first version (Biryani, Bun Kebab, Chicken Burger, Banana Cake, Chocolate Brownie) and any demo items | Admin portal, Products: edit, hide or delete |
-| Product and packing photos (the site draws a neon cup, glass or bowl until there is one) | Admin portal, Products |
+| Photos for Desi Chill (Lassi), Rabri Kheer, Dahi Bhalla and Chana Chaat, and packing photos (the site draws a neon cup, glass or bowl until there is one) | Admin portal, Products |
+| Items marked "coming soon" on the Chacha's website (patties, pastries, penny cake, special cake) are added hidden | Admin portal, Products: tick Show on the menu |
 | Opening hours (shown on the hero and in the footer), delivery charge | Admin portal, Shop details |
 | Phone and WhatsApp number that receives orders (0345 9024745) | Admin portal, Shop details |
 | Chacha's counter phone, email and Instagram in the footer | `CHACHAS` in `client/src/components/Layout.tsx` |
@@ -38,7 +39,9 @@ Stack: React 19 + Vite, Express + tRPC, MySQL (Drizzle ORM). Deploys on Coolify 
 
 ## Updating an existing site
 
-This version adds database columns and Chacha's menu. After deploying, run `pnpm db:setup` once in the app's terminal (or keep it as the post-deployment command). It applies the new migration, gives the existing categories their kitchen, adds Chacha's categories and items, and fills in the meal of the day. It never changes anything the admin has edited, and Chacha's items are only added the first time their category is created, so items you delete later stay deleted.
+This version adds database columns and Chacha's menu. After deploying, run `pnpm db:setup` once in the app's terminal (or keep it as the post-deployment command). It applies the new migration, gives the existing categories their kitchen, adds Chacha's categories and items, and fills in the meal of the day. It never changes anything the admin has edited. Missing menu items are added again on every run, so to take an item off the menu, untick **Show on the menu** instead of deleting it.
+
+Photos come from `server/menu-images` (taken from chachas.livingfoodspk.com, plus three cut from the printed menu card), named by product slug; flavour photos are named `<slug>--<option>.webp`. A photo uploaded in the admin portal is never replaced.
 
 ## Order alerts
 

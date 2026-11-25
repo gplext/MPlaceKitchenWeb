@@ -1,11 +1,11 @@
 import { Check, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { formatPKR, isPriceOnRequest, priceFor, type Selection } from "@shared/shop";
+import { formatPKR, isPriceOnRequest, photoFor, priceFor, type Selection } from "@shared/shop";
 import { useBag } from "@/bag";
 import type { Product } from "@/types";
 
 /** Size, flavour, add-ons and quantity for one product, with the live price. Calls onAdded after adding to the bag. */
-export function OptionPicker({ product, onAdded }: { product: Product; onAdded?: () => void }) {
+export function OptionPicker({ product, onAdded, onChoice }: { product: Product; onAdded?: () => void; onChoice?: (choice: string) => void }) {
   const { add } = useBag();
   const [size, setSize] = useState<string | null>(product.sizes?.[0]?.label ?? null);
   const [choice, setChoice] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export function OptionPicker({ product, onAdded }: { product: Product; onAdded?:
           <legend>{product.choices.label || "Flavour"} <em>pick one</em></legend>
           <div className="choice-chips">
             {product.choices.options.map(option => (
-              <button key={option} type="button" aria-pressed={choice === option} onClick={() => { setChoice(option); setError(null); setAdded(false); }}>{option}</button>
+              <button key={option} type="button" aria-pressed={choice === option} onClick={() => { setChoice(option); onChoice?.(option); setError(null); setAdded(false); }}>{option}</button>
             ))}
           </div>
         </fieldset>
@@ -87,6 +87,8 @@ export function OptionPicker({ product, onAdded }: { product: Product; onAdded?:
 /** A slide-up sheet with the picker, for items that need a size or flavour before they go in the bag. */
 export function OptionSheet({ product, onClose }: { product: Product; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [choice, setChoice] = useState<string | null>(null);
+  const photo = photoFor(product, choice);
   useEffect(() => {
     const element = dialog.current;
     if (element && !element.open) element.showModal();
@@ -95,13 +97,14 @@ export function OptionSheet({ product, onClose }: { product: Product; onClose: (
     <dialog ref={dialog} className="sheet" onClose={onClose} onClick={event => { if (event.target === dialog.current) dialog.current?.close(); }} aria-labelledby={`sheet-${product.id}`}>
       <div className="sheet-body">
         <div className="sheet-head">
+          {photo && <img className="sheet-photo" src={photo} alt="" width={88} height={88} />}
           <div>
             <h2 id={`sheet-${product.id}`}>{product.name}</h2>
             {product.description && <p className="muted">{product.description}</p>}
           </div>
           <button type="button" className="icon-link" onClick={() => dialog.current?.close()} aria-label="Close"><X size={22} /></button>
         </div>
-        <OptionPicker product={product} onAdded={() => window.setTimeout(() => dialog.current?.close(), 650)} />
+        <OptionPicker product={product} onChoice={setChoice} onAdded={() => window.setTimeout(() => dialog.current?.close(), 650)} />
       </div>
     </dialog>
   );

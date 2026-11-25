@@ -1,7 +1,7 @@
 import { MessageCircle, Minus, PackageCheck, Phone, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { deliveryFeeFor, formatPKR, type OrderChannel } from "@shared/shop";
+import { deliveryFeeFor, formatPKR, photoFor, type OrderChannel } from "@shared/shop";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useBag } from "@/bag";
 import { useCatalog } from "@/catalog";
@@ -92,12 +92,13 @@ export function BagPage() {
           <section className="card">
             <h2>Items</h2>
             <ul className="bag-lines">
-              {lines.map(({ key, product, quantity, unitPrice, details, priceOnRequest }) => {
+              {lines.map(({ key, product, quantity, unitPrice, details, priceOnRequest, selection }) => {
                 const art = vesselFor(product.name, getCategory(product.categoryId)?.name);
+                const photo = photoFor(product, selection.choice);
                 return (
                   <li key={key}>
                     <Link href={`/product/${product.slug}`} className="bag-thumb">
-                      {product.image ? <img src={product.image} alt="" width={56} height={56} /> : <Vessel kind={art.kind} tone={art.tone} className="full" />}
+                      {photo ? <img src={photo} alt="" width={56} height={56} /> : <Vessel kind={art.kind} tone={art.tone} className="full" />}
                     </Link>
                     <div className="bag-line-info"><strong>{product.name}</strong><small>{details ? `${details} · ` : ""}{priceOnRequest ? "price on call" : formatPKR(unitPrice)}</small></div>
                     <div className="qty small" role="group" aria-label={`Quantity of ${product.name}`}>

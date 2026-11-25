@@ -23,8 +23,14 @@ export const categories = [
 
 type SeedProduct = {
   slug: string; category: string; name: string; description: string; price: number; unit: string; featured?: boolean; sortOrder: number;
-  sizes?: ProductSize[]; choices?: ProductChoice; addons?: ProductAddon[];
+  sizes?: ProductSize[]; choices?: ProductChoice; addons?: ProductAddon[]; available?: boolean;
 };
+
+/** Chacha's items from the first menu import that were replaced by individual items. */
+export const retiredSlugs = ["chachas-favourite-patties"];
+
+/** Starter products that share a dish with Chacha's menu get the same photo. */
+export const sharedPhotos: Record<string, string> = { biryani: "meal-of-the-day", "banana-cake": "chachas-banana-cake", "chocolate-brownie": "brownie" };
 
 const R_L = (regular: number, large: number): ProductSize[] => [{ label: "Regular", price: regular }, { label: "Large", price: large }];
 const ICE_CREAM_FLAVOURS: ProductChoice = { label: "Flavour", options: ["Chocolate", "Blueberry", "Mango", "Cherry", "Strawberry", "Caramel"] };
@@ -40,6 +46,7 @@ export const chachaProducts: SeedProduct[] = [
   { slug: "everyday-chai", category: "chai", name: "Everyday Chai", description: "A perfectly balanced cup of karak milk tea, brewed fresh every time. Add silky malai to make it richer and creamier.", price: 80, unit: "1 cup", featured: true, sortOrder: 2, addons: [{ name: "Extra malai", price: 20 }] },
   { slug: "zen-chai", category: "chai", name: "Zen Chai (Green Chai)", description: "Light green tea infused with warming spices for a refreshing, calming sip.", price: 70, unit: "1 cup", sortOrder: 3 },
   { slug: "pink-velvet-chai", category: "chai", name: "Pink Velvet Chai", description: "Creamy Kashmiri pink tea with a velvety finish and delicate flavour.", price: 100, unit: "1 cup", sortOrder: 4 },
+  { slug: "peshawari-kahwah", category: "chai", name: "Peshawari Kahwah", description: "Fragrant green tea brewed the Peshawari way with cardamom.", price: 75, unit: "1 cup", sortOrder: 6 },
   { slug: "chai-chiller", category: "chai", name: "Chai Chiller (Flavoured Iced Tea)", description: "Refreshing iced tea in fruity flavours that keep every sip exciting.", price: 100, unit: "1 glass", featured: true, sortOrder: 5 },
   // Coffee
   { slug: "bold-brew", category: "coffee", name: "Bold Brew (Americano)", description: "Bold Arabica coffee with a clean finish for true coffee lovers.", price: 120, unit: "1 cup", sortOrder: 1, addons: [{ name: "Milk", price: 30 }] },
@@ -52,18 +59,35 @@ export const chachaProducts: SeedProduct[] = [
   { slug: "ocean-club", category: "burgers-sandwiches", name: "Ocean Club (Tuna Sandwich)", description: "Creamy tuna filling paired with crisp vegetables.", price: 330, unit: "1 sandwich", sortOrder: 3 },
   { slug: "eggcellent", category: "burgers-sandwiches", name: "Eggcellent (Egg Sandwich)", description: "Soft eggs, simple flavours and everyday comfort.", price: 220, unit: "1 sandwich", sortOrder: 4 },
   { slug: "beef-boss", category: "burgers-sandwiches", name: "Beef Boss (Hunter Beef Sandwich)", description: "Juicy hunter beef stacked high with bold flavours.", price: 330, unit: "1 sandwich", sortOrder: 5 },
+  { slug: "shawarma", category: "burgers-sandwiches", name: "Shawarma", description: "Shawarma with chicken, vegetables and lots of delicious sauces.", price: 180, unit: "1 roll", sortOrder: 6 },
+  { slug: "shawarma-deal", category: "burgers-sandwiches", name: "Shawarma Deal", description: "A chicken shawarma with a slush of your choice.", price: 220, unit: "1 deal", sortOrder: 7 },
+  { slug: "pattie", category: "burgers-sandwiches", name: "Pattie", description: "An individual pattie.", price: 200, unit: "1 piece", sortOrder: 8 },
   // Ice-cream
   { slug: "ice-cream-burger", category: "ice-cream", name: "Ice-cream Burger", description: "Creamy ice cream tucked inside a warm bun.", price: 120, unit: "1 piece", featured: true, sortOrder: 1, choices: ICE_CREAM_FLAVOURS, addons: ICE_CREAM_ADDONS },
   { slug: "classic-soft-serve", category: "ice-cream", name: "Classic Soft Serve", description: "Rich, creamy ice cream freshly swirled into a crispy cone or cup. A timeless classic made to satisfy every craving.", price: 50, unit: "cone or cup", sortOrder: 2, sizes: [{ label: "Regular", price: 50 }, { label: "Medium", price: 100 }, { label: "Large", price: 150 }], choices: ICE_CREAM_FLAVOURS, addons: ICE_CREAM_ADDONS },
+  { slug: "cone-ice-cream", category: "ice-cream", name: "Cone Ice Cream", description: "Rich, creamy ice cream freshly swirled into a crispy cone.", price: 50, unit: "1 cone", sortOrder: 3 },
+  { slug: "ice-cream-with-hot-brownie", category: "ice-cream", name: "Ice Cream with Hot Brownie or Biscuits", description: "Ice cream served with a hot brownie or your choice of biscuits, with creamy chocolate sauce.", price: 150, unit: "1 plate", sortOrder: 4, choices: { label: "Served with", options: ["Hot brownie", "Biscuits"] } },
+  { slug: "special-brownie", category: "ice-cream", name: "Special Brownie", description: "Chacha's special brownie.", price: 100, unit: "1 piece", sortOrder: 5 },
   // Slush
-  { slug: "brain-freeze", category: "slush", name: "Brain Freeze (Fruit Slush)", description: "Ice-cold slush blended with bold fruit flavours for the perfect refresh.", price: 70, unit: "1 glass", sortOrder: 1, sizes: [{ label: "Medium", price: 70 }, { label: "Large", price: 100 }], choices: { label: "Flavour", options: ["Blueberry", "Cherry", "Strawberry", "Mango", "Peach", "Orange", "Pineapple", "Apple", "Pomegranate", "Lemon"] } },
+  { slug: "brain-freeze", category: "slush", name: "Brain Freeze (Fruit Slush)", description: "Ice-cold slush blended with bold fruit flavours for the perfect refresh.", price: 70, unit: "1 glass", sortOrder: 1, sizes: [{ label: "Medium", price: 70 }, { label: "Large", price: 100 }], choices: { label: "Flavour", options: ["Apple", "Blueberry", "Cherry", "Lemon", "Lychee", "Mango", "Orange", "Peach", "Pineapple", "Plum", "Pomegranate (Anaar)", "Strawberry", "Tutti Frutti"] } },
   { slug: "chachas-special-slush", category: "slush", name: "Chacha's Special", description: "Our house favourite: plum, tamarind and badam mix, made from real fruits and served with icy goodness.", price: 80, unit: "1 glass", featured: true, sortOrder: 2, sizes: R_L(80, 120) },
+  { slug: "almond-badam-slush", category: "slush", name: "Almond (Badam) Slush", description: "Made from real almonds: a fresh and healthy drink.", price: 120, unit: "1 glass", sortOrder: 3 },
   // Sip station
   { slug: "shake-it", category: "sip-station", name: "Shake It (Milkshakes)", description: "Thick, creamy shakes blended with real fruit puree or sauce and fresh full-cream milk.", price: 150, unit: "1 glass", sortOrder: 1, sizes: R_L(150, 220), choices: { label: "Flavour", options: ["Blueberry", "Cherry", "Strawberry", "Mango", "Peach", "Pineapple", "Chocolate", "Caramel", "Pistachio", "Banana"] }, addons: [{ name: "Whipped cream", price: 50 }] },
   { slug: "smooth-moves", category: "sip-station", name: "Smooth Moves (Fruit Smoothies)", description: "Real fruits or fruit purees blended with creamy yoghurt and bananas into a naturally refreshing drink.", price: 200, unit: "1 glass", sortOrder: 2, sizes: R_L(200, 270), choices: { label: "Flavour", options: ["Mango", "Strawberry", "Peach"] } },
   { slug: "desi-chill-lassi", category: "sip-station", name: "Desi Chill (Lassi)", description: "Fresh homemade yoghurt blended into Pakistan's favourite chilled classic.", price: 120, unit: "1 glass", sortOrder: 3, sizes: R_L(120, 200), choices: { label: "Taste", options: ["Sweet", "Salty"] } },
   // Fresh from the oven
-  { slug: "chachas-favourite-patties", category: "fresh-from-the-oven", name: "Chacha's Favourite Patties & Bakes", description: "Fresh from the oven at the food display station. We confirm the price when we call or message you.", price: 0, unit: "1 piece", sortOrder: 1, choices: { label: "Item", options: ["Chicken Patty", "Vegetable Patty", "Signature Plain Cake (slice)", "Penny Fruit Cake (slice)", "Lemon Tart", "Black Forest Cake", "Tea Biscuits"] } },
+  // "Coming soon" on the Chacha's website: added hidden, switch on in the admin portal when ready.
+  { slug: "chicken-patties", category: "fresh-from-the-oven", name: "Chicken Patties", description: "Flaky chicken patties, baked fresh.", price: 100, unit: "1 piece", sortOrder: 1, available: false },
+  { slug: "vegetable-patties", category: "fresh-from-the-oven", name: "Vegetable Patties", description: "Flaky vegetable patties, baked fresh.", price: 80, unit: "1 piece", sortOrder: 2, available: false },
+  { slug: "pastry-black-forest", category: "fresh-from-the-oven", name: "Pastry (Black Forest)", description: "A slice of black forest pastry.", price: 100, unit: "1 piece", sortOrder: 6, available: false },
+  { slug: "pastry-lemon-tart", category: "fresh-from-the-oven", name: "Pastry (Lemon Tart)", description: "A zesty lemon tart.", price: 100, unit: "1 piece", sortOrder: 7, available: false },
+  { slug: "penny-cake", category: "fresh-from-the-oven", name: "Penny Cake (Plain / Fruit)", description: "By the slice or as a full cake.", price: 50, unit: "1 slice", sortOrder: 8, available: false, choices: { label: "Cake", options: ["Plain", "Fruit"] } },
+  { slug: "chachas-special-cake", category: "fresh-from-the-oven", name: "Chacha's Special Cake", description: "Special banana cake made with premium flour and walnuts.", price: 100, unit: "1 slice", sortOrder: 9, available: false },
+  { slug: "biscuit-packs", category: "fresh-from-the-oven", name: "Biscuit Packs", description: "Chacha's tea biscuits, packed.", price: 50, unit: "1 pack", sortOrder: 10 },
+  { slug: "brownie", category: "fresh-from-the-oven", name: "Brownie", description: "Hot chocolate brownie with delicious chocolate sauce on top.", price: 100, unit: "1 piece", sortOrder: 11 },
+  { slug: "chachas-banana-cake", category: "fresh-from-the-oven", name: "Banana Cake", description: "Our special banana cake with all the goodness of banana in a delightful, fluffy bake.", price: 200, unit: "1 cake", sortOrder: 12 },
+  { slug: "pudding-with-jelly", category: "fresh-from-the-oven", name: "Pudding with Jelly", description: "Chocolate pudding with strawberry jelly.", price: 100, unit: "1 cup", sortOrder: 13 },
   { slug: "butter-bun", category: "fresh-from-the-oven", name: "Butter Bun", description: "Warm toasted bun generously layered with creamy butter.", price: 120, unit: "1 bun", sortOrder: 2, addons: [{ name: "Egg", price: 70 }, { name: "Shami kabab", price: 80 }, { name: "Shami kabab and egg", price: 150 }] },
   { slug: "fruit-bun-with-butter", category: "fresh-from-the-oven", name: "Fruit Bun with Butter", description: "Soft, fluffy bun filled with sweet fruity goodness.", price: 130, unit: "1 bun", sortOrder: 3 },
   // Desi delights (priced at the food display station)

@@ -21,6 +21,8 @@ type Form = {
   choiceLabel: string;
   /** Comma or line separated. */
   choiceOptions: string;
+  /** Photos per option, kept as they are (set by the menu import). */
+  choiceImages: Record<string, string>;
   /** One per line, "Whipped cream = 50". */
   addons: string;
   image: string | null;
@@ -38,7 +40,7 @@ type Form = {
   sortOrder: string;
 };
 
-const blank: Form = { categoryId: "", name: "", description: "", price: "", unit: "", sizes: "", choiceLabel: "Flavour", choiceOptions: "", addons: "", image: null, packingImage: null, ingredients: "", allergens: [], dietary: [], calories: "", servingSize: "", healthNotes: "", expiryDate: "", shelfLife: "", available: true, featured: false, sortOrder: "0" };
+const blank: Form = { categoryId: "", name: "", description: "", price: "", unit: "", sizes: "", choiceLabel: "Flavour", choiceOptions: "", choiceImages: {}, addons: "", image: null, packingImage: null, ingredients: "", allergens: [], dietary: [], calories: "", servingSize: "", healthNotes: "", expiryDate: "", shelfLife: "", available: true, featured: false, sortOrder: "0" };
 
 const toForm = (product: ProductRow): Form => ({
   id: product.id,
@@ -50,6 +52,7 @@ const toForm = (product: ProductRow): Form => ({
   sizes: (product.sizes ?? []).map(size => `${size.label} = ${size.price}`).join("\n"),
   choiceLabel: product.choices?.label ?? "Flavour",
   choiceOptions: (product.choices?.options ?? []).join(", "),
+  choiceImages: product.choices?.images ?? {},
   addons: (product.addons ?? []).map(addon => `${addon.name} = ${addon.price}`).join("\n"),
   image: product.image,
   packingImage: product.packingImage,
@@ -107,7 +110,7 @@ export function ProductsTab() {
       description: form.description,
       price: Number(form.price) || 0,
       sizes: sizes.rows.length ? sizes.rows.map(row => ({ label: row.name, price: row.price })) : null,
-      choices: options.length ? { label: form.choiceLabel.trim() || "Flavour", options } : null,
+      choices: options.length ? { label: form.choiceLabel.trim() || "Flavour", options, images: form.choiceImages } : null,
       addons: addons.rows.length ? addons.rows : null,
       unit: form.unit,
       image: form.image,
@@ -234,7 +237,7 @@ function toPayload(product: ProductRow) {
     description: product.description,
     price: product.price,
     sizes: product.sizes,
-    choices: product.choices,
+    choices: product.choices ? { ...product.choices, images: product.choices.images ?? {} } : null,
     addons: product.addons,
     unit: product.unit,
     image: product.image,

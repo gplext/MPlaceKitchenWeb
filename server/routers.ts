@@ -48,7 +48,7 @@ const productInput = z.object({
   price: money,
   sizes: z.array(z.object({ label: optionName, price: money.refine(value => value > 0, "Give every size a price") })).max(8).nullable()
     .refine(list => !list || new Set(list.map(size => size.label.toLowerCase())).size === list.length, "Size names must be different"),
-  choices: z.object({ label: z.string().trim().max(40), options: z.array(optionName).max(30) }).nullable(),
+  choices: z.object({ label: z.string().trim().max(40), options: z.array(optionName).max(30), images: z.record(z.string(), z.string().regex(/^\/media\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/)).optional() }).nullable(),
   addons: z.array(z.object({ name: optionName, price: money })).max(20).nullable(),
   unit: z.string().trim().max(60).default(""),
   image: mediaPath,
@@ -190,7 +190,9 @@ export const appRouter = router({
         if (productId && !existing) throw new TRPCError({ code: "NOT_FOUND" });
         const slug = existing?.slug ?? await uniqueSlug("products", values.name);
         const sizes = values.sizes?.length ? values.sizes : null;
-        const choices = values.choices?.options.length ? { label: values.choices.label || "Flavour", options: values.choices.options } : null;
+        // Option photos are kept only for options that still exist.
+        const images = Object.fromEntries(Object.entries(values.choices?.images ?? {}).filter(([option]) => values.choices?.options.includes(option)));
+        const choices = values.choices?.options.length ? { label: values.choices.label || "Flavour", options: values.choices.options, ...(Object.keys(images).length ? { images } : {}) } : null;
         const addons = values.addons?.length ? values.addons : null;
         const price = sizes ? Math.min(...sizes.map(size => size.price)) : values.price;
         return { id: await db.saveProduct({ ...values, price, sizes, choices, addons, slug }, productId), slug };

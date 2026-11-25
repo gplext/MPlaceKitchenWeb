@@ -1,4 +1,6 @@
 import { CalendarClock, ChevronRight, HeartPulse, Leaf, Package } from "lucide-react";
+import { useState } from "react";
+import { photoFor } from "@shared/shop";
 import { Link, useParams } from "wouter";
 import { useCatalog } from "@/catalog";
 import { OptionPicker } from "@/components/OptionPicker";
@@ -26,6 +28,8 @@ function ProductDetail({ product }: { product: Product }) {
   const more = productsIn(product.categoryId).filter(item => item.id !== product.id).slice(0, 4);
   const hasNutrition = product.calories != null || product.servingSize || product.allergens.length || product.dietary.length || product.healthNotes;
   const { kind, tone } = vesselFor(product.name, category?.name);
+  const [choice, setChoice] = useState<string | null>(null);
+  const photo = photoFor(product, choice);
 
   return (
     <div className="product-page container">
@@ -37,8 +41,8 @@ function ProductDetail({ product }: { product: Product }) {
 
       <div className="product-layout">
         <div className="product-gallery">
-          <div className={`product-photo ${product.image ? "" : "is-art"}`}>
-            {product.image ? <img src={product.image} alt={product.name} width={520} height={520} /> : <Vessel kind={kind} tone={tone} className="big" />}
+          <div className={`product-photo ${photo ? "" : "is-art"}`}>
+            {photo ? <img key={photo} src={photo} alt={choice ? `${product.name}, ${choice}` : product.name} width={520} height={520} /> : <Vessel kind={kind} tone={tone} className="big" />}
           </div>
           {product.packingImage && (
             <figure className="packing-photo">
@@ -55,7 +59,7 @@ function ProductDetail({ product }: { product: Product }) {
           {product.description && <p className="product-description">{product.description}</p>}
           {product.dietary.length > 0 && <div className="chips">{product.dietary.map(tag => <span key={tag} className="chip"><Leaf size={13} /> {tag}</span>)}</div>}
 
-          <OptionPicker product={product} />
+          <OptionPicker product={product} onChoice={setChoice} />
 
           <div className="info-boxes">
             <section className="info-box">

@@ -41,7 +41,8 @@ export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"
 
 /** Customer choices a product can offer. Sizes replace the base price; add-ons are added to it. */
 export type ProductSize = { label: string; price: number };
-export type ProductChoice = { label: string; options: string[] };
+/** `images` optionally maps an option to its own photo (e.g. each slush flavour). */
+export type ProductChoice = { label: string; options: string[]; images?: Record<string, string> };
 export type ProductAddon = { name: string; price: number };
 export type ProductOptions = { price: number; sizes: ProductSize[] | null; choices: ProductChoice | null; addons: ProductAddon[] | null };
 export type Selection = { size?: string | null; choice?: string | null; addons?: string[] | null };
@@ -80,6 +81,10 @@ export function priceFor(product: ProductOptions, selection: Selection = {}): { 
 }
 
 /** Same product with the same choices is one bag line. */
+/** The photo for what the customer picked, falling back to the product photo. */
+export const photoFor = (product: { image: string | null; choices: ProductChoice | null }, choice?: string | null) =>
+  (choice && product.choices?.images?.[choice]) || product.image;
+
 export const selectionKey = (productId: number, selection: Selection = {}) =>
   [productId, selection.size ?? "", selection.choice ?? "", [...(selection.addons ?? [])].sort().join("+")].join("|");
 
